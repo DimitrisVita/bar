@@ -1,29 +1,38 @@
+# Compiler
 CC = gcc
-CFLAGS = -Wall -pthread
-LDFLAGS = -lrt
 
-all: receptionist visitor monitor
+# Compiler flags
+CFLAGS = -Wall -Wextra -std=c11 -Iinclude -lpthread
 
-receptionist: receptionist.o shared_memory.o
-	$(CC) $(CFLAGS) -o receptionist receptionist.o shared_memory.o $(LDFLAGS)
+# Target executables
+TARGETS = visitor receptionist monitor init_smem
 
-visitor: visitor.o shared_memory.o
-	$(CC) $(CFLAGS) -o visitor visitor.o shared_memory.o $(LDFLAGS)
+# Source files
+SRCS = $(wildcard src/*.c)
 
-monitor: monitor.o shared_memory.o
-	$(CC) $(CFLAGS) -o monitor monitor.o shared_memory.o $(LDFLAGS)
+# Object files
+OBJS = $(SRCS:.c=.o)
 
-receptionist.o: receptionist.c shared_memory.h
-	$(CC) $(CFLAGS) -c receptionist.c
+# Default target
+all: $(TARGETS)
 
-visitor.o: visitor.c shared_memory.h
-	$(CC) $(CFLAGS) -c visitor.c
+# Link object files to create the executables
+visitor: src/visitor.o src/smem.o
+	$(CC) $(CFLAGS) src/visitor.o src/smem.o -o visitor -lpthread
 
-monitor.o: monitor.c shared_memory.h
-	$(CC) $(CFLAGS) -c monitor.c
+receptionist: src/receptionist.o src/smem.o
+	$(CC) $(CFLAGS) src/receptionist.o src/smem.o -o receptionist -lpthread
 
-shared_memory.o: shared_memory.c shared_memory.h
-	$(CC) $(CFLAGS) -c shared_memory.c
+monitor: src/monitor.o src/smem.o
+	$(CC) $(CFLAGS) src/monitor.o src/smem.o -o monitor -lpthread
 
+init_smem: src/init_smem.o src/smem.o
+	$(CC) $(CFLAGS) src/init_smem.o src/smem.o -o init_smem -lpthread
+
+# Compile source files to object files
+src/%.o: src/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean up build artifacts
 clean:
-	rm -f *.o receptionist visitor monitor
+	rm -f $(TARGETS) src/*.o
