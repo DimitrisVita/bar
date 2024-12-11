@@ -1,4 +1,4 @@
-#include "common.h"
+#include "shared_memory.h"  // Include the header file
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/shm.h>
@@ -8,24 +8,24 @@
 
 int main() {
     int shmid;
-    shared_data_t *shared_data;
+    SharedMemory *shared_data;
 
     // Create shared memory segment
-    shmid = shmget(IPC_PRIVATE, sizeof(shared_data_t), IPC_CREAT | 0666);
+    shmid = shmget(IPC_PRIVATE, sizeof(SharedMemory), IPC_CREAT | 0666);
     if (shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
     }
 
     // Attach to shared memory
-    shared_data = (shared_data_t *)shmat(shmid, NULL, 0);
+    shared_data = (SharedMemory *)shmat(shmid, NULL, 0);
     if (shared_data == (void *)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
 
     // Initialize shared data
-    shared_data->visitor_count = 0;
+    shared_data->total_visitors = 0;
     shared_data->water_count = 0;
     shared_data->wine_count = 0;
     shared_data->cheese_count = 0;
@@ -35,10 +35,14 @@ int main() {
 
     // Initialize semaphores
     for (int i = 0; i < NUM_TABLES; i++) {
-        if (sem_init(&shared_data->table_sem[i], 1, CHAIRS_PER_TABLE) == -1) {
+        if (sem_init(&shared_data->table_semaphores[i], 1, 1) == -1) {
             perror("sem_init");
             exit(EXIT_FAILURE);
         }
+    }
+    if (sem_init(&shared_data->waiting_sem, 1, 0) == -1) {
+        perror("sem_init");
+        exit(EXIT_FAILURE);
     }
     if (sem_init(&shared_data->order_sem, 1, 1) == -1) {
         perror("sem_init");
@@ -47,6 +51,17 @@ int main() {
     if (sem_init(&shared_data->mutex, 1, 1) == -1) {
         perror("sem_init");
         exit(EXIT_FAILURE);
+    }
+
+    // Initialize circular buffer semaphore
+    if (sem_init(&shared_data->buffer_sem, 1, 1) == -1) {
+        perror("sem_init");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize visitor PIDs array
+    for (int i = 0; i < MAX_VISITORS; i++) {
+        shared_data->visitor_pids[i] = 0;
     }
 
     // Print shared memory ID

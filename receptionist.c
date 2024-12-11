@@ -1,4 +1,4 @@
-#include "common.h"
+#include "shared_memory.h"  // Include the header file
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,8 +33,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Attach to shared memory
-    void *shared_memory = shmat(shmid, NULL, 0);
-    if (shared_memory == (void *) -1) {
+    SharedMemory *shared_memory = (SharedMemory *)shmat(shmid, NULL, 0);
+    if (shared_memory == (void *)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
@@ -45,17 +45,17 @@ int main(int argc, char *argv[]) {
     // Main loop to handle receptionist behavior
     while (1) {
         // Wait for a visitor to place an order
-        // ...existing code...
-
+        sem_wait(&shared_memory->order_sem);
         // Simulate order processing time
         int processing_time = (rand() % (ordertime / 2)) + (ordertime / 2);
         sleep(processing_time);
 
         // Update shared memory with order details
-        // ...existing code...
+        printf("Receptionist processing order\n");
+        shared_memory->wine_count++;  // Example: increment wine count
 
         // Signal that the order is complete
-        // ...existing code...
+        sem_post(&shared_memory->order_sem);
     }
 
     // Detach from shared memory
