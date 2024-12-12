@@ -5,6 +5,7 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <time.h>
 
 
 #define NUM_TABLES 3

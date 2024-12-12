@@ -1,7 +1,5 @@
 #include "smem.h"
 #include "common.h"
-#include <stdlib.h>
-#include <time.h>
 
 int main(int argc, char *argv[]) {
     int opt;
