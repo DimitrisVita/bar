@@ -57,6 +57,14 @@ void init_semaphores(SharedMemory* shm) {
             perror("sem_init");
             exit(EXIT_FAILURE);
         }
+        if (sem_init(&shm->orderSemaphores[i], 1, 0) == -1) {
+            perror("sem_init");
+            exit(EXIT_FAILURE);
+        }
+        if (sem_init(&shm->seatSemaphores[i], 1, 0) == -1) {
+            perror("sem_init");
+            exit(EXIT_FAILURE);
+        }
     }
 }
 
@@ -75,6 +83,12 @@ void destroy_semaphores(SharedMemory* shm) {
     }
     for (int i = 0; i < MAX_VISITORS; i++) {
         if (sem_destroy(&shm->waitingSemaphores[i]) == -1) {
+            perror("sem_destroy");
+        }
+        if (sem_destroy(&shm->orderSemaphores[i]) == -1) {
+            perror("sem_destroy");
+        }
+        if (sem_destroy(&shm->seatSemaphores[i]) == -1) {
             perror("sem_destroy");
         }
     }

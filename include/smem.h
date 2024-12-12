@@ -32,6 +32,8 @@ typedef struct {
     sem_t mutex;    // Mutex for accessing shared memory
     sem_t table_sem[NUM_TABLES];    // Semaphore for each table
     sem_t order_sem;    // Semaphore for order processing
+    sem_t orderSemaphores[MAX_VISITORS]; // Semaphore for ordering
+    sem_t seatSemaphores[MAX_VISITORS];  // Semaphore for selecting seats
 
     // Circular buffer
     pid_t waitingBuffer[MAX_VISITORS];
