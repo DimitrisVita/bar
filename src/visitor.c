@@ -68,6 +68,25 @@ int main(int argc, char *argv[]) {
     // Wait for the order to be processed
     sem_wait(&shared_memory->waitingSemaphores[getpid() % MAX_VISITORS]);
 
+    // Randomly decide what to order
+    int order_water = rand() % 2;
+    int order_wine = rand() % 2;
+    int order_cheese = rand() % 2;
+    int order_salad = rand() % 2;
+
+    // Ensure at least one drink is ordered
+    if (!order_water && !order_wine) {
+        order_water = 1;
+    }
+
+    // Update shared memory with the order
+    sem_wait(&shared_memory->mutex);
+    if (order_water) shared_memory->waterCount++;
+    if (order_wine) shared_memory->wineCount++;
+    if (order_cheese) shared_memory->cheeseCount++;
+    if (order_salad) shared_memory->saladCount++;
+    sem_post(&shared_memory->mutex);
+
     // Rest at the table
     srand(time(NULL));
     int sleep_time = (rand() % (resttime / 2 + 1)) + (resttime / 2);

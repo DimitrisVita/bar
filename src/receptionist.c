@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
         int sleep_time = (rand() % (ordertime / 2 + 1)) + (ordertime / 2);
         printf("Servicing visitor PID %d for %d seconds\n", visitor_pid, sleep_time);
         sleep(sleep_time);
+        printf("Visitor PID %d serviced\n", visitor_pid);	
 
         // Notify the visitor that their order is ready
         sem_post(&shared_memory->waitingSemaphores[visitor_pid % MAX_VISITORS]);
