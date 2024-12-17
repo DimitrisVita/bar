@@ -39,12 +39,13 @@ int main(int argc, char *argv[]) {
 
         // Critical section to get the next visitor from the queue
         sem_wait(&shared_memory->mutex);
-        pid_t visitor_pid = shared_memory->waitingBuffer[shared_memory->bufferStart];
-        shared_memory->bufferStart = (shared_memory->bufferStart + 1) % MAX_VISITORS;
+        pid_t visitor_pid = shared_memory->waitBuffer[shared_memory->waitStart];
+        int wait_index = shared_memory->waitStart;
+        shared_memory->waitStart = (shared_memory->waitStart + 1) % MAX_VISITORS;
         sem_post(&shared_memory->mutex);
 
         // Notify the visitor to start ordering
-        sem_post(&shared_memory->orderSemaphores[visitor_pid % MAX_VISITORS]);
+        sem_post(&shared_memory->orderSemaphores[wait_index]);
 
         // Simulate order processing time
         int sleep_time = (rand() % (ordertime / 2 + 1)) + (ordertime / 2);
@@ -53,7 +54,7 @@ int main(int argc, char *argv[]) {
         printf("Visitor PID %d serviced\n", visitor_pid);	
 
         // Notify the visitor that their order is ready
-        sem_post(&shared_memory->waitingSemaphores[visitor_pid % MAX_VISITORS]);
+        sem_post(&shared_memory->waitSemaphores[wait_index]);
     }
 
     // Detach from shared memory

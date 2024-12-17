@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <time.h>
+#include <stdbool.h>
 
 
 #define NUM_TABLES 3

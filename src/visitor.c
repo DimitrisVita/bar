@@ -1,6 +1,44 @@
 #include "smem.h"
 #include "common.h"
 
+void find_empty_chair(SharedMemory* shm) {
+    bool found = false;
+    for (int i = 0; i < NUM_TABLES; i++) {
+        bool table_locked = false;
+        for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
+            if (shm->tables[i].chairs[j].status == LEAVING) {
+                table_locked = true;
+                break;
+            }
+        }
+        if (!table_locked && !shm->tables[i].isOccupied) {
+            for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
+                if (shm->tables[i].chairs[j].status == EMPTY) {
+                    // Found an empty chair
+                    shm->tables[i].chairs[j].status = EATING;
+                    shm->tables[i].chairs[j].pid = getpid();
+                    printf("Visitor %d seated at table %d, chair %d\n", getpid(), i, j);
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (found) break;
+    }
+    if (!found) {
+        // No empty chairs available, add to waiting buffer
+        printf("No empty chairs available for visitor %d, waiting...\n", getpid());
+        shm->waitBuffer[shm->waitEnd] = getpid();
+        int wait_index = shm->waitEnd;
+        printf("Visitor %d added to waitBuffer at index %d\n", getpid(), wait_index); // Debug print
+        shm->waitEnd = (shm->waitEnd + 1) % MAX_VISITORS;
+        sem_post(&shm->mutex);
+        sem_wait(&shm->waitSemaphores[wait_index]);
+        sem_wait(&shm->mutex);
+        find_empty_chair(shm); // Retry finding an empty chair
+    }
+}
+
 int main(int argc, char *argv[]) {
     int opt;
     int resttime = 0;  // Maximum time to rest at the table
@@ -28,45 +66,25 @@ int main(int argc, char *argv[]) {
     // Attach to shared memory
     SharedMemory *shared_memory = attach_shmem(shmid);
 
-    // Select a table
-    int table_id = -1;
-    while (table_id == -1) {
-        for (int i = 0; i < NUM_TABLES; i++) {
-            if (sem_trywait(&shared_memory->table_sem[i]) == 0) {
-                table_id = i;
-                break;
-            }
-        }
-        if (table_id == -1) {
-            sleep(1); // Wait for a while before trying again
-        }
-    }
-
-    // Sit at the table
+    // Find an empty chair of a table
     sem_wait(&shared_memory->mutex);
-    for (int i = 0; i < CHAIRS_PER_TABLE; i++) {
-        if (shared_memory->tables[table_id].chairs[i].pid == 0) {
-            shared_memory->tables[table_id].chairs[i].pid = getpid();
-            break;
-        }
-    }
+    find_empty_chair(shared_memory);
     sem_post(&shared_memory->mutex);
 
     // Notify the receptionist
     sem_wait(&shared_memory->mutex);
-    shared_memory->waitingBuffer[shared_memory->bufferEnd] = getpid();
-    shared_memory->bufferEnd = (shared_memory->bufferEnd + 1) % MAX_VISITORS;
+    shared_memory->waitBuffer[shared_memory->waitEnd] = getpid();
+    int wait_index = shared_memory->waitEnd;
+    printf("Visitor %d added to waitBuffer at index %d\n", getpid(), wait_index); // Debug print
+    shared_memory->waitEnd = (shared_memory->waitEnd + 1) % MAX_VISITORS;
     sem_post(&shared_memory->mutex);
     sem_post(&shared_memory->order_sem);
 
     // Wait for the receptionist to allow ordering
-    sem_wait(&shared_memory->orderSemaphores[getpid() % MAX_VISITORS]);
-
-    // Notify the receptionist that seat selection is done
-    sem_post(&shared_memory->seatSemaphores[getpid() % MAX_VISITORS]);
+    sem_wait(&shared_memory->orderSemaphores[wait_index]);
 
     // Wait for the order to be processed
-    sem_wait(&shared_memory->waitingSemaphores[getpid() % MAX_VISITORS]);
+    sem_wait(&shared_memory->waitSemaphores[wait_index]);
 
     // Randomly decide what to order
     int order_water = rand() % 2;
@@ -95,14 +113,36 @@ int main(int argc, char *argv[]) {
 
     // Leave the table
     sem_wait(&shared_memory->mutex);
-    for (int i = 0; i < CHAIRS_PER_TABLE; i++) {
-        if (shared_memory->tables[table_id].chairs[i].pid == getpid()) {
-            shared_memory->tables[table_id].chairs[i].pid = 0;
-            break;
+    for (int i = 0; i < NUM_TABLES; i++) {
+        for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
+            if (shared_memory->tables[i].chairs[j].pid == getpid()) {
+                shared_memory->tables[i].chairs[j].pid = 0;
+                shared_memory->tables[i].chairs[j].status = EMPTY;
+                bool all_empty = true;
+                for (int k = 0; k < CHAIRS_PER_TABLE; k++) {
+                    if (shared_memory->tables[i].chairs[k].status != EMPTY) {
+                        all_empty = false;
+                        break;
+                    }
+                }
+                if (all_empty) {
+                    shared_memory->tables[i].isOccupied = false;
+
+                    // Wake up visitors from the waiting buffer (up to 4)
+                    int wake_count = 0;
+                    while (shared_memory->waitStart != shared_memory->waitEnd && wake_count < 4) {
+                        int wait_index = shared_memory->waitStart;
+                        printf("Waking up visitor at waitBuffer index %d\n", wait_index); // Debug print
+                        shared_memory->waitStart = (shared_memory->waitStart + 1) % MAX_VISITORS;
+                        sem_post(&shared_memory->waitSemaphores[wait_index]);
+                        wake_count++;
+                    }
+                }
+                break;
+            }
         }
     }
     sem_post(&shared_memory->mutex);
-    sem_post(&shared_memory->table_sem[table_id]);
 
     // Update statistics
     sem_wait(&shared_memory->mutex);

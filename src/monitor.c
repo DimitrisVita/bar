@@ -24,30 +24,18 @@ int main(int argc, char *argv[]) {
     // Attach to shared memory
     SharedMemory *shared_memory = attach_shmem(shmid);
 
+    // Mutex for critical section
     sem_wait(&shared_memory->mutex);
 
-    printf("Current status of tables:\n");
-    for (int i = 0; i < NUM_TABLES; i++) {
-        printf("Table %d: ", i);
-        for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
-            if (shared_memory->tables[i].chairs[j].pid != 0) {
-                printf("Chair %d (PID: %d) ", j, shared_memory->tables[i].chairs[j].pid);
-            } else {
-                printf("Chair %d (empty) ", j);
-            }
-        }
-        printf("\n");
-    }
+    // Print statistics
+    print_statistics(shared_memory);
 
-    printf("Total visitors: %d\n", shared_memory->visitorsCount);
-    printf("Water count: %d\n", shared_memory->waterCount);
-    printf("Cheese count: %d\n", shared_memory->cheeseCount);
-    printf("Wine count: %d\n", shared_memory->wineCount);
-    printf("Salad count: %d\n", shared_memory->saladCount);
-    printf("Total visit duration: %.2f\n", shared_memory->visitsDuration);
-    printf("Total waiting duration: %.2f\n", shared_memory->waitingDuration);
+    // Print tables status
+    print_tables(shared_memory);
 
+    // Release mutex
     sem_post(&shared_memory->mutex);
+
 
     // Detach from shared memory
     detach_shmem(shared_memory);

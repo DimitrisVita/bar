@@ -7,12 +7,13 @@
 
 typedef struct {
     pid_t pid;
-    int status;
+    enum { EMPTY, EATING, LEAVING } status;
 } Chair;
 
 typedef struct {
     int table_id;
     Chair chairs[CHAIRS_PER_TABLE];
+    bool isOccupied;
 } Table;
 
 typedef struct {
@@ -29,19 +30,21 @@ typedef struct {
     int visitorsCount;
 
     // Semaphores
-    sem_t mutex;    // Mutex for accessing shared memory
-    sem_t table_sem[NUM_TABLES];    // Semaphore for each table
-    sem_t order_sem;    // Semaphore for order processing
-    sem_t orderSemaphores[MAX_VISITORS]; // Semaphore for ordering
-    sem_t seatSemaphores[MAX_VISITORS];  // Semaphore for selecting seats
+    sem_t mutex;
+    sem_t order_sem;
 
-    // Circular buffer
-    pid_t waitingBuffer[MAX_VISITORS];
-    int bufferStart;
-    int bufferEnd;
+    // Circular buffer for visitors waiting for empty chair
+    sem_t waitSemaphores[MAX_VISITORS];
+    int waitStart;
+    int waitEnd;
 
-    // Waiting semaphores
-    sem_t waitingSemaphores[MAX_VISITORS];
+    // Circular buffer for visitors waiting for order to be processed
+    sem_t orderSemaphores[MAX_VISITORS];
+    int orderStart;
+    int orderEnd;
+
+    // Circular buffer for visitors waiting for empty chair
+    pid_t waitBuffer[MAX_VISITORS];
 } SharedMemory;
 
 
@@ -66,5 +69,19 @@ void init_semaphores(SharedMemory* shm);
 
 // Destroy semaphores in shared memory
 void destroy_semaphores(SharedMemory* shm);
+
+// Statistics functions
+
+// Initialize statistics
+void init_statistics(SharedMemory* shm);
+
+// Print statistics
+void print_statistics(SharedMemory* shm);
+
+// Table functions
+void init_tables(SharedMemory* shm);
+
+// Print tables
+void print_tables(SharedMemory* shm);
 
 #endif // SHARED_MEMORY_H
