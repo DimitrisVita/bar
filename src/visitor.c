@@ -75,6 +75,7 @@ int main(int argc, char *argv[]) {
     sem_wait(&shared_memory->orderSemaphores[order_index]);
 
     // Randomly decide what to order
+    srand(time(NULL));
     int order_water = rand() % 2;
     int order_wine = rand() % 2;
     int order_cheese = rand() % 2;
@@ -82,7 +83,11 @@ int main(int argc, char *argv[]) {
 
     // Ensure at least one drink is ordered
     if (!order_water && !order_wine) {
-        order_water = 1;
+        if (rand() % 2) {
+            order_water = 1;
+        } else {
+            order_wine = 1;
+        }
     }
 
     // Update shared memory with the order

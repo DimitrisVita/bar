@@ -37,7 +37,7 @@ int main() {
     for (int i = 0; i < NUM_VISITORS; i++) {
         pid_t visitor_pid = fork();
         if (visitor_pid == 0) {
-            execl("./visitor", "visitor", "-d", "2", "-s", shmid_str, (char *)NULL);
+            execl("./visitor", "visitor", "-d", "1", "-s", shmid_str, (char *)NULL);
             perror("execl");
             exit(EXIT_FAILURE);
         }
