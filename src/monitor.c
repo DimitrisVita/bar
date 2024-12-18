@@ -24,23 +24,17 @@ int main(int argc, char *argv[]) {
     // Attach to shared memory
     SharedMemory *shared_memory = attach_shmem(shmid);
 
-    // Local copies of shared memory data
-    SharedMemory local_copy;
-
     // Mutex for critical section
     sem_wait(&shared_memory->mutex);
 
-    // Copy data from shared memory
-    local_copy = *shared_memory;
+    // Print statistics
+    print_statistics(shared_memory);
+
+    // Print tables status
+    print_tables(shared_memory);
 
     // Release mutex
     sem_post(&shared_memory->mutex);
-
-    // Print statistics
-    print_statistics(&local_copy);
-
-    // Print tables status
-    print_tables(&local_copy);
 
     // Detach from shared memory
     detach_shmem(shared_memory);

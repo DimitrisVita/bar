@@ -5,6 +5,7 @@ void find_empty_chair(SharedMemory* shm) {
     bool found = false;
     for (int i = 0; i < NUM_TABLES && !found; i++) {
         if (shm->tables[i].isOccupied) {
+            printf("Table %d is occupied\n", i);
             continue; // Skip occupied tables
         }
         for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
@@ -22,10 +23,14 @@ void find_empty_chair(SharedMemory* shm) {
         // No empty chairs available, add to waiting buffer
         printf("No empty chairs available for visitor %d, waiting...\n", getpid());
         int wait_index = shm->waitEnd;
+        shm->waitingVisitors[wait_index] = getpid(); // Update waitingVisitors array
         shm->waitEnd = (shm->waitEnd + 1) % MAX_VISITORS;
         sem_post(&shm->mutex); // Release mutex before waiting
         sem_wait(&shm->waitSemaphores[wait_index]);
         sem_wait(&shm->mutex); // Reacquire mutex after being signaled
+        
+        // Find an empty chair again
+        find_empty_chair(shm);
     }
 }
 
@@ -112,6 +117,15 @@ int main(int argc, char *argv[]) {
                     }
                 }
                 shared_memory->tables[i].isOccupied = !table_empty;
+
+                if (table_empty) {
+                    for (int k = 0; k < 4 && shared_memory->waitStart != shared_memory->waitEnd; k++) {
+                        int wait_index = shared_memory->waitStart;
+                        shared_memory->waitStart = (shared_memory->waitStart + 1) % MAX_VISITORS;
+                        sem_post(&shared_memory->waitSemaphores[wait_index]);
+                    }
+                }
+                
                 break;
             }
         }

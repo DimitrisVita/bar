@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-#define NUM_VISITORS 13
+#define NUM_VISITORS 100
 
 int main() {
     // Create shared memory

@@ -55,6 +55,7 @@ void init_semaphores(SharedMemory* shm) {
             perror("sem_init");
             exit(EXIT_FAILURE);
         }
+        shm->waitingVisitors[i] = 0; // Initialize waitingVisitors array
     }
     shm->waitStart = 0;
     shm->waitEnd = 0;
