@@ -3,6 +3,18 @@
 #include <stdlib.h>
 #include <time.h>
 
+void service_visitor(int ordertime, SharedMemory *shared_memory) {
+    // Process the order
+    srand(time(NULL));
+    int order_time = (rand() % (ordertime / 2 + 1)) + (ordertime / 2);
+    printf("Receptionist processing order for visitor for %d seconds\n", order_time);
+    sleep(order_time);
+
+    // Signal the visitor that their order is processed
+    sem_post(&shared_memory->orderSemaphores[shared_memory->orderStart]);
+    shared_memory->orderStart = (shared_memory->orderStart + 1) % MAX_VISITORS;
+}
+
 int main(int argc, char *argv[]) {
     int opt;
     int ordertime = 0;  // Maximum time to process an order
@@ -33,28 +45,12 @@ int main(int argc, char *argv[]) {
     // Process orders
     srand(time(NULL)); // Seed the random number generator
 
-    while (1) { // Loop to keep the receptionist running
-        // Wait for a client
+    while (1) {
+        // Wait for an order to be placed
         sem_wait(&shared_memory->order_sem);
 
-        // Critical section to get the next visitor from the queue
-        sem_wait(&shared_memory->mutex);
-        pid_t visitor_pid = shared_memory->waitBuffer[shared_memory->waitStart];
-        int wait_index = shared_memory->waitStart;
-        shared_memory->waitStart = (shared_memory->waitStart + 1) % MAX_VISITORS;
-        sem_post(&shared_memory->mutex);
-
-        // Notify the visitor to start ordering
-        sem_post(&shared_memory->orderSemaphores[wait_index]);
-
-        // Simulate order processing time
-        int sleep_time = (rand() % (ordertime / 2 + 1)) + (ordertime / 2);
-        printf("Servicing visitor PID %d for %d seconds\n", visitor_pid, sleep_time);
-        sleep(sleep_time);
-        printf("Visitor PID %d serviced\n", visitor_pid);	
-
-        // Notify the visitor that their order is ready
-        sem_post(&shared_memory->waitSemaphores[wait_index]);
+        // Service the visitor
+        service_visitor(ordertime, shared_memory);
     }
 
     // Detach from shared memory

@@ -37,14 +37,12 @@ typedef struct {
     sem_t waitSemaphores[MAX_VISITORS];
     int waitStart;
     int waitEnd;
+    pid_t waitingVisitors[MAX_VISITORS]; // Add this line
 
     // Circular buffer for visitors waiting for order to be processed
     sem_t orderSemaphores[MAX_VISITORS];
     int orderStart;
     int orderEnd;
-
-    // Circular buffer for visitors waiting for empty chair
-    pid_t waitBuffer[MAX_VISITORS];
 } SharedMemory;
 
 

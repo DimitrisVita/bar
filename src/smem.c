@@ -68,9 +68,6 @@ void destroy_semaphores(SharedMemory* shm) {
     if (sem_destroy(&shm->mutex) == -1) {
         perror("sem_destroy");
     }
-    if (sem_destroy(&shm->order_sem) == -1) {
-        perror("sem_destroy");
-    }
     for (int i = 0; i < MAX_VISITORS; i++) {
         if (sem_destroy(&shm->waitSemaphores[i]) == -1) {
             perror("sem_destroy");
