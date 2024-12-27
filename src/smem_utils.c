@@ -38,15 +38,15 @@ void init_semaphores(SharedMemory* shm) {
         perror("sem_init");
         exit(EXIT_FAILURE);
     }
-    if (sem_init(&shm->sit, 1, 0) == -1) {
+    if (sem_init(&shm->sit, 1, NUM_TABLES * CHAIRS_PER_TABLE) == -1) {
         perror("sem_init");
         exit(EXIT_FAILURE);
     }
-    if (sem_init(&shm->order, 1, 0) == -1) {
+    if (sem_init(&shm->order, 1, 1) == -1) {
         perror("sem_init");
         exit(EXIT_FAILURE);
     }
-    if (sem_init(&shm->wakeup, 1, 0) == -1) {
+    if (sem_init(&shm->wakeup, 1, 0) == -1) { // Initialize wakeup semaphore to 0
         perror("sem_init");
         exit(EXIT_FAILURE);
     }
