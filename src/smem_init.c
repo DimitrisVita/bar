@@ -24,7 +24,7 @@ int main() {
     // Fork and start the receptionist process
     pid_t receptionist_pid = fork();
     if (receptionist_pid == 0) {
-        execlp("./receptionist", "./receptionist", "-d", "5", "-s", shmid_str, NULL);
+        execlp("./receptionist", "./receptionist", "-d", "10", "-s", shmid_str, NULL);
         perror("execlp");
         exit(EXIT_FAILURE);
     }
@@ -33,7 +33,9 @@ int main() {
     for (int i = 0; i < NUM_VISITORS; i++) {
         pid_t visitor_pid = fork();
         if (visitor_pid == 0) {
-            execl("./visitor", "visitor", "-d", "1", "-s", shmid_str, (char *)NULL);
+            // Seed the random number generator with a unique value
+            srand(time(NULL));
+            execl("./visitor", "visitor", "-d", "10", "-s", shmid_str, (char *)NULL);
             perror("execl");
             exit(EXIT_FAILURE);
         }

@@ -16,7 +16,7 @@
 #define NUM_TABLES 3
 #define CHAIRS_PER_TABLE 4
 
-#define NUM_VISITORS 100
+#define NUM_VISITORS 13
 
 enum DRINK_OPTIONS {
     WATER,
@@ -30,13 +30,11 @@ enum FOOD_OPTIONS {
 
 typedef struct {
     pid_t pid;
-    enum { EMPTY, EATING, LEFT } status;
 } Chair;
 
 typedef struct {
     int table_id;
     Chair chairs[CHAIRS_PER_TABLE];
-    bool isOccupied;
 } Table;
 
 typedef struct {

@@ -37,9 +37,6 @@ int main(int argc, char *argv[]) {
         
         // ORDERING
 
-        // only one visitor can order at a time
-        sem_wait(&shm->order);
-
         // Randomly decide what to order
         srand(time(NULL));
         int orders[4] = {rand() % 2, rand() % 2, rand() % 2, rand() % 2};
@@ -58,9 +55,12 @@ int main(int argc, char *argv[]) {
         sem_post(&shm->mutex);
 
         // Wait for the order to be processed
-        srand(time(NULL));
-        int order_time = (rand() % (ordertime / 2 + 1)) + (ordertime / 2);
+
+        int min_order_time = (int)(0.50 * ordertime);
+        int order_time = min_order_time + rand() % (ordertime - min_order_time + 1);
+        printf("Receptionist is processing the order for %d seconds\n", order_time);
         sleep(order_time);
+        printf("Receptionist has processed the order\n");
         
         // Release the order semaphore
         sem_post(&shm->order);
