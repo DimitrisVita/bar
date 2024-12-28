@@ -6,6 +6,7 @@ int main(int argc, char *argv[]) {
     int ordertime = 0;  // Maximum time to process an order
     int shmid = 0;      // Shared memory ID
 
+    // Parse command line arguments
     while ((opt = getopt(argc, argv, "d:s:")) != -1) {
         switch (opt) {
             case 'd':
@@ -20,31 +21,26 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Check if the required arguments are provided
     if (ordertime == 0 || shmid == 0) {
         fprintf(stderr, "Usage: %s -d ordertime -s shmid\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    // Attach to shared memory
-    SharedMemory* shm = attach_shmem(shmid);
+    SharedMemory* shm = attach_shmem(shmid);    // Attach to shared memory
 
-    // Process orders
-    srand(time(NULL)); // Seed the random number generator
-    
+    srand(time(NULL));
+
     while (true) {
-        // Wait for a visitor to arrive
-        sem_wait(&shm->wakeup);
+        sem_wait(&shm->wakeup); // Wait for a visitor to arrive
         
-        // ORDERING
-
-        // Randomly decide what to order
+        // Whats the visitor's order
         srand(time(NULL));
         int orders[4] = {rand() % 2, rand() % 2, rand() % 2, rand() % 2};
 
         // Ensure at least one drink is ordered
-        if (!orders[0] && !orders[1]) {
+        if (!orders[0] && !orders[1])
             orders[rand() % 2] = 1;
-        }
 
         // Update statistics
         sem_wait(&shm->mutex);
@@ -54,25 +50,18 @@ int main(int argc, char *argv[]) {
         shm->saladCount += orders[3];
         sem_post(&shm->mutex);
 
-        // Wait for the order to be processed
-
+        // Random order time in the range [0.5 * ordertime, ordertime]
         int min_order_time = (int)(0.50 * ordertime);
         int order_time = min_order_time + rand() % (ordertime - min_order_time + 1);
-        printf("Receptionist is processing the order for %d seconds\n", order_time);
-        sleep(order_time);
-        printf("Receptionist has processed the order\n");
-        
-        // Release the order semaphore
-        sem_post(&shm->order);
 
-        // END ORDERING
+        sleep(order_time);  // Process the order
+        
+        sem_post(&shm->order);  // Notify the visitor that the order is ready
     }
 
-    // Detach from shared memory
-    detach_shmem(shm);
+    detach_shmem(shm);  // Detach from shared memory
 
-    // Destroy shared memory
-    destroy_shmem(shmid);
+    destroy_shmem(shmid);   // Destroy shared memory
 
     return 0;
 }

@@ -46,8 +46,8 @@ typedef struct {
     int cheeseCount;
     int wineCount;
     int saladCount;
-    double visitsDuration;
-    double waitingDuration;
+    double visitDuration;
+    double waitDuration;
     int visitorsCount;
 
     // Semaphores

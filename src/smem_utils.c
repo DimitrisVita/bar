@@ -1,6 +1,7 @@
 #include "common_types.h"
 #include "smem_utils.h"
 
+// Create shared memory segment and return its id
 int create_shmem() {
     int shmid = shmget(IPC_PRIVATE, sizeof(SharedMemory), IPC_CREAT | 0666);
     if (shmid == -1) {
@@ -10,6 +11,7 @@ int create_shmem() {
     return shmid;
 }
 
+// Attach shared memory segment to the calling process
 SharedMemory* attach_shmem(int shmid) {
     SharedMemory* shm = (SharedMemory*) shmat(shmid, NULL, 0);
     if (shm == (void*) -1) {
@@ -19,6 +21,7 @@ SharedMemory* attach_shmem(int shmid) {
     return shm;
 }
 
+// Detach shared memory segment from the calling process
 void detach_shmem(SharedMemory* shm) {
     if (shmdt(shm) == -1) {
         perror("shmdt");
@@ -26,6 +29,8 @@ void detach_shmem(SharedMemory* shm) {
     }
 }
 
+
+// Destroy shared memory segment
 void destroy_shmem(int shmid) {
     if (shmctl(shmid, IPC_RMID, NULL) == -1) {
         perror("shmctl");
@@ -33,6 +38,7 @@ void destroy_shmem(int shmid) {
     }
 }
 
+// Initialize semaphores in shared memory
 void init_semaphores(SharedMemory* shm) {
     if (sem_init(&shm->mutex, 1, 1) == -1) {
         perror("sem_init");
@@ -46,7 +52,7 @@ void init_semaphores(SharedMemory* shm) {
         perror("sem_init");
         exit(EXIT_FAILURE);
     }
-    if (sem_init(&shm->wakeup, 1, 0) == -1) { // Initialize wakeup semaphore to 0
+    if (sem_init(&shm->wakeup, 1, 0) == -1) {
         perror("sem_init");
         exit(EXIT_FAILURE);
     }
@@ -56,6 +62,7 @@ void init_semaphores(SharedMemory* shm) {
     }
 }
 
+// Destroy semaphores in shared memory
 void destroy_semaphores(SharedMemory* shm) {
     if (sem_destroy(&shm->mutex) == -1) {
         perror("sem_destroy");
@@ -79,41 +86,44 @@ void destroy_semaphores(SharedMemory* shm) {
     }
 }
 
+// Initialize statistics
 void init_statistics(SharedMemory* shm) {
     shm->waterCount = 0;
     shm->cheeseCount = 0;
     shm->wineCount = 0;
     shm->saladCount = 0;
-    shm->visitsDuration = 0;
-    shm->waitingDuration = 0;
+    shm->visitDuration = 0;
+    shm->waitDuration = 0;
     shm->visitorsCount = 0;
 }
 
+// Print statistics
 void print_statistics(SharedMemory* shm) {
     printf("Water: %d\n", shm->waterCount);
-    printf("Cheese: %d\n", shm->cheeseCount);
     printf("Wine: %d\n", shm->wineCount);
+    printf("Cheese: %d\n", shm->cheeseCount);
     printf("Salad: %d\n", shm->saladCount);
-    printf("Average visit duration: %.2f\n", shm->visitsDuration / shm->visitorsCount);
-    printf("Average waiting duration: %.2f\n", shm->waitingDuration / shm->visitorsCount);
+    double avgVisitDur = shm->visitorsCount > 0 ? shm->visitDuration / shm->visitorsCount : 0;
+    printf("Average visit duration: %f\n", avgVisitDur);
+    double avgWaitDur = shm->visitorsCount > 0 ? shm->waitDuration / shm->visitorsCount : 0;
+    printf("Average wait duration: %f\n", avgWaitDur);
+    printf("Visitors count: %d\n", shm->visitorsCount);
 }
 
+// Initialize tables
 void init_tables(SharedMemory* shm) {
     for (int i = 0; i < NUM_TABLES; i++) {
         shm->tables[i].table_id = i;
-        shm->tables[i].isOccupied = false;
-        for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
-            shm->tables[i].chairs[j].pid = -1;
-            shm->tables[i].chairs[j].status = EMPTY;
-        }
+        for (int j = 0; j < CHAIRS_PER_TABLE; j++)
+            shm->tables[i].chairs[j].pid = 0;
     }
 }
 
+// Print tables
 void print_tables(SharedMemory* shm) {
     for (int i = 0; i < NUM_TABLES; i++) {
         printf("Table %d\n", i);
-        for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
-            printf("Chair %d: %d\n", j, shm->tables[i].chairs[j].pid);
-        }
+        for (int j = 0; j < CHAIRS_PER_TABLE; j++)
+            printf("\tChair %d: %d\n", j, shm->tables[i].chairs[j].pid);
     }
 }

@@ -5,6 +5,7 @@ int main(int argc, char *argv[]) {
     int shmid = 0;
     int opt;
 
+    // Parse command line arguments
     while ((opt = getopt(argc, argv, "s:")) != -1) {
         switch (opt) {
             case 's':
@@ -16,28 +17,23 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Check if the required arguments are provided
     if (shmid == 0) {
         fprintf(stderr, "Usage: %s -s shmid\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    // Attach to shared memory
-    SharedMemory *shared_memory = attach_shmem(shmid);
+    SharedMemory *shm = attach_shmem(shmid);    // Attach to shared memory
 
-    // Mutex for critical section
-    sem_wait(&shared_memory->mutex);
+    sem_wait(&shm->mutex);  // Mutex for critical section
 
-    // Print statistics
-    print_statistics(shared_memory);
+    print_statistics(shm);
 
-    // Print tables status
-    print_tables(shared_memory);
+    print_tables(shm);  // Print tables status
 
-    // Release mutex
-    sem_post(&shared_memory->mutex);
+    sem_post(&shm->mutex);  // Release the mutex
 
-    // Detach from shared memory
-    detach_shmem(shared_memory);
+    detach_shmem(shm);  // Detach from shared memory
 
     return 0;
 }
