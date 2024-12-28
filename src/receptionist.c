@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
         sem_post(&shm->order);  // Notify the visitor that the order is ready
     }
 
-    detach_shmem(shm);  // Detach from shared memory
-
+    detach_shmem(shm);
+    
     return 0;
 }

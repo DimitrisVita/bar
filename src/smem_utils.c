@@ -76,7 +76,7 @@ void init_semaphores(SharedMemory* shm) {
         perror("sem_init");
         exit(EXIT_FAILURE);
     }
-    if (sem_init(&shm->order, 1, 1) == -1) {
+    if (sem_init(&shm->order, 1, 0) == -1) {
         perror("sem_init");
         exit(EXIT_FAILURE);
     }
