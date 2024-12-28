@@ -31,6 +31,8 @@ int main(int argc, char *argv[]) {
 
     srand(time(NULL));
 
+    log_message(shm, "Receptionist started");
+
     while (true) {
         sem_wait(&shm->wakeup); // Wait for a visitor to arrive
         
@@ -50,6 +52,8 @@ int main(int argc, char *argv[]) {
         shm->saladCount += orders[3];
         sem_post(&shm->mutex);
 
+        log_message(shm, "Receptionist processing order: Water: %d, Wine: %d, Cheese: %d, Salad: %d", orders[0], orders[1], orders[2], orders[3]);
+
         // Random order time in the range [0.5 * ordertime, ordertime]
         int min_order_time = (int)(0.50 * ordertime);
         int order_time = min_order_time + rand() % (ordertime - min_order_time + 1);
@@ -60,8 +64,6 @@ int main(int argc, char *argv[]) {
     }
 
     detach_shmem(shm);  // Detach from shared memory
-
-    destroy_shmem(shmid);   // Destroy shared memory
 
     return 0;
 }

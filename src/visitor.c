@@ -25,6 +25,7 @@ void find_chair(SharedMemory* shm) {
             if (shm->tables[i].chairs[j].pid == 0) {    // Found an empty chair
                 shm->tables[i].chairs[j].pid = getpid();    // Occupy the chair
                 found = true;
+                log_message(shm, "Visitor %d found a chair at table %d, chair %d", getpid(), i, j);
             }
         }
     }
@@ -43,12 +44,16 @@ void leave_chair(SharedMemory* shm) {
     for (int i = 0; i < NUM_TABLES; i++) {
         bool all_left = true;
         for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
-            if (shm->tables[i].chairs[j].pid == getpid())       // Leave the chair
+            if (shm->tables[i].chairs[j].pid == getpid()) {    // Leave the chair
                 shm->tables[i].chairs[j].pid = -1;
+                log_message(shm, "Visitor %d is leaving the chair at table %d, chair %d", getpid(), i, j);
+            }
             if (shm->tables[i].chairs[j].pid != -1)     // Check if all chairs are marked as left
                 all_left = false;
         }
         if (all_left) {
+            log_message(shm, "All visitors left table %d", i);
+
             // Initialize the table
             for (int j = 0; j < CHAIRS_PER_TABLE; j++)
                 shm->tables[i].chairs[j].pid = 0;
@@ -90,6 +95,8 @@ int main(int argc, char *argv[]) {
 
     SharedMemory* shm = attach_shmem(shmid);    // Attach to shared memory
 
+    log_message(shm, "Visitor %d arrived at the bar", getpid());
+
     // Start timer for how long the visitor stays at the bar
     struct tms tb1, tb2;
     double t1, t2, ticspersec;
@@ -102,10 +109,14 @@ int main(int argc, char *argv[]) {
 
     sem_wait(&shm->order);  // Wait for the receptionist to process the order
 
+    log_message(shm, "Visitor %d received the order", getpid());
+
     // Random rest time in the range [0.7 * resttime, resttime]
     srand(time(NULL));
     int min_rest_time = (int)(0.70 * resttime);
     int rest_time = min_rest_time + rand() % (resttime - min_rest_time + 1);
+
+    log_message(shm, "Visitor %d is resting for %d seconds", getpid(), rest_time);
 
     sleep(rest_time);   // Rest at the table
 
@@ -119,6 +130,8 @@ int main(int argc, char *argv[]) {
     sem_wait(&shm->mutex);
     shm->visitDuration += visit_duration;
     sem_post(&shm->mutex);
+
+    log_message(shm, "Visitor %d left the bar", getpid());
 
     detach_shmem(shm);  // Detach from shared memory
 

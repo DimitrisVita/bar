@@ -1,5 +1,7 @@
 #include "common_types.h"
 #include "smem_utils.h"
+#include <stdio.h>  // Include for perror
+#include <time.h>  // Include for time functions
 
 // Create shared memory segment and return its id
 int create_shmem() {
@@ -152,4 +154,36 @@ void print_tables(SharedMemory* shm) {
         for (int j = 0; j < CHAIRS_PER_TABLE; j++)
             printf("\tChair %d: %d\n", j, shm->tables[i].chairs[j].pid);
     }
+}
+
+// Initialize logging
+void init_logging(SharedMemory* shm) {
+    shm->log_fd = open("bar_log.txt", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (shm->log_fd == -1) {
+        perror("open log file");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Log a message without a timestamp
+void log_message(SharedMemory* shm, const char* format, ...) {
+    sem_wait(&shm->log);
+
+    // Format the message
+    char message[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(message, sizeof(message), format, args);
+    va_end(args);
+
+    // Write the formatted message to the log file
+    write(shm->log_fd, message, strlen(message));
+    write(shm->log_fd, "\n", 1);
+
+    sem_post(&shm->log);
+}
+
+// Close log file
+void close_log(SharedMemory* shm) {
+    close(shm->log_fd);
 }

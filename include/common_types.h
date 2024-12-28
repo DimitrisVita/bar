@@ -12,6 +12,11 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
+#include <string.h>
+#include <fcntl.h>
+#include <stdarg.h>
+
 
 #define NUM_TABLES 3
 #define CHAIRS_PER_TABLE 4
@@ -56,6 +61,9 @@ typedef struct {
     sem_t order;            // Semaphore for ordering
     sem_t wakeup;           // Semaphore to wake up receptionist
     sem_t log;              // Semaphore for logging
+
+    // Log file descriptor
+    int log_fd;
 } SharedMemory;
 
 #endif // COMMON_TYPES_H

@@ -37,4 +37,15 @@ void init_tables(SharedMemory* shm);
 // Print tables
 void print_tables(SharedMemory* shm);
 
+// Logging functions
+
+// Initialize logging
+void init_logging(SharedMemory* shm);
+
+// Log a message with a timestamp
+void log_message(SharedMemory* shm, const char* format, ...);
+
+// close log file
+void close_log(SharedMemory* shm);
+
 #endif // SMEM_UTILS_H

@@ -9,6 +9,7 @@ int main() {
     init_semaphores(shm);
     init_statistics(shm);
     init_tables(shm);
+    init_logging(shm);
 
     // Print shared memory id
     printf("Shared memory id: %d\n", shmid);
@@ -24,7 +25,7 @@ int main() {
     // Fork and start the receptionist process
     pid_t receptionist_pid = fork();
     if (receptionist_pid == 0) {
-        execlp("./receptionist", "./receptionist", "-d", "10", "-s", shmid_str, NULL);
+        execlp("./receptionist", "./receptionist", "-d", "5", "-s", shmid_str, NULL);
         perror("execlp");
         exit(EXIT_FAILURE);
     }
@@ -35,7 +36,7 @@ int main() {
         if (visitor_pid == 0) {
             // Seed the random number generator with a unique value
             srand(time(NULL));
-            execl("./visitor", "visitor", "-d", "10", "-s", shmid_str, (char *)NULL);
+            execl("./visitor", "visitor", "-d", "5", "-s", shmid_str, (char *)NULL);
             perror("execl");
             exit(EXIT_FAILURE);
         }
@@ -46,9 +47,15 @@ int main() {
         wait(NULL);
     }
 
-    destroy_semaphores(shm);
+    // Send termination signal to the receptionist process
+    kill(receptionist_pid, SIGTERM);
+
+    // Wait for the receptionist process to finish
+    waitpid(receptionist_pid, NULL, 0);
+
+    close_log(shm);
     detach_shmem(shm);
-    destroy_shmem(shmid);
+    destroy_shmem(shmid);    
 
     return 0;
 }
