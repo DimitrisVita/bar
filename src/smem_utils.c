@@ -29,12 +29,38 @@ void detach_shmem(SharedMemory* shm) {
     }
 }
 
-
 // Destroy shared memory segment
 void destroy_shmem(int shmid) {
+    // Attach to the shared memory segment to access semaphores
+    SharedMemory* shm = attach_shmem(shmid);
+    if (shm == NULL) {
+        perror("Failed to attach shared memory");
+        return;
+    }
+
+    // Destroy semaphores
+    if (sem_destroy(&shm->mutex) == -1) {
+        perror("Failed to destroy mutex semaphore");
+    }
+    if (sem_destroy(&shm->sit) == -1) {
+        perror("Failed to destroy sit semaphore");
+    }
+    if (sem_destroy(&shm->order) == -1) {
+        perror("Failed to destroy order semaphore");
+    }
+    if (sem_destroy(&shm->wakeup) == -1) {
+        perror("Failed to destroy wakeup semaphore");
+    }
+    if (sem_destroy(&shm->log) == -1) {
+        perror("Failed to destroy log semaphore");
+    }
+
+    // Detach the shared memory segment
+    detach_shmem(shm);
+
+    // Remove the shared memory segment
     if (shmctl(shmid, IPC_RMID, NULL) == -1) {
-        perror("shmctl");
-        exit(EXIT_FAILURE);
+        perror("Failed to remove shared memory segment");
     }
 }
 
