@@ -4,6 +4,7 @@
         "common.h": "c",
         "ipc.h": "c",
         "semaphore.h": "c",
-        "shm.h": "c"
+        "shm.h": "c",
+        "stdio.h": "c"
     }
 }

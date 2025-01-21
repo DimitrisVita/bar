@@ -21,6 +21,10 @@ int main() {
     // Print shared memory ID
     printf("Shared memory ID: %d\n", shmid);
 
+    // Wait untill i press enter
+    printf("Press enter to start the simulation\n");
+    getchar();
+
     // Convert shared memory ID to string
     char shmid_str[10];
     sprintf(shmid_str, "%d", shmid);
