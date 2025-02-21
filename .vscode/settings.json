@@ -1,10 +1,5 @@
 {
     "files.associations": {
-        "stdlib.h": "c",
-        "common.h": "c",
-        "ipc.h": "c",
-        "semaphore.h": "c",
-        "shm.h": "c",
-        "stdio.h": "c"
+        "smem_utils.h": "c"
     }
 }

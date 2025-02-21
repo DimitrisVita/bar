@@ -1,25 +1,12 @@
-#include "smem.h"
-#include "common.h"
-#include <stdlib.h>
-#include <time.h>
-
-void service_visitor(int ordertime, SharedMemory *shared_memory) {
-    // Process the order
-    srand(time(NULL));
-    int order_time = (rand() % (ordertime / 2 + 1)) + (ordertime / 2);
-    printf("Receptionist processing order for visitor for %d seconds\n", order_time);
-    sleep(order_time);
-
-    // Signal the visitor that their order is processed
-    sem_post(&shared_memory->orderSemaphores[shared_memory->orderStart]);
-    shared_memory->orderStart = (shared_memory->orderStart + 1) % MAX_VISITORS;
-}
+#include "common_types.h"
+#include "smem_utils.h"
 
 int main(int argc, char *argv[]) {
     int opt;
     int ordertime = 0;  // Maximum time to process an order
     int shmid = 0;      // Shared memory ID
 
+    // Parse command line arguments
     while ((opt = getopt(argc, argv, "d:s:")) != -1) {
         switch (opt) {
             case 'd':
@@ -34,30 +21,49 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Check if the required arguments are provided
     if (ordertime == 0 || shmid == 0) {
         fprintf(stderr, "Usage: %s -d ordertime -s shmid\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    // Attach to shared memory
-    SharedMemory *shared_memory = attach_shmem(shmid);
+    SharedMemory* shm = attach_shmem(shmid);    // Attach to shared memory
 
-    // Process orders
-    srand(time(NULL)); // Seed the random number generator
+    srand(time(NULL));
 
-    while (1) {
-        // Wait for an order to be placed
-        sem_wait(&shared_memory->order_sem);
+    log_message(shm, "Receptionist started");
 
-        // Service the visitor
-        service_visitor(ordertime, shared_memory);
+    while (true) {
+        sem_wait(&shm->wakeup); // Wait for a visitor to arrive
+        
+        // Whats the visitor's order
+        srand(time(NULL));
+        int orders[4] = {rand() % 2, rand() % 2, rand() % 2, rand() % 2};
+
+        // Ensure at least one drink is ordered
+        if (!orders[0] && !orders[1])
+            orders[rand() % 2] = 1;
+
+        // Update statistics
+        sem_wait(&shm->mutex);
+        shm->waterCount += orders[0];
+        shm->wineCount += orders[1];
+        shm->cheeseCount += orders[2];
+        shm->saladCount += orders[3];
+        sem_post(&shm->mutex);
+
+        log_message(shm, "Receptionist processing order: Water: %d, Wine: %d, Cheese: %d, Salad: %d", orders[0], orders[1], orders[2], orders[3]);
+
+        // Random order time in the range [0.5 * ordertime, ordertime]
+        int min_order_time = (int)(0.50 * ordertime);
+        int order_time = min_order_time + rand() % (ordertime - min_order_time + 1);
+
+        sleep(order_time);  // Process the order
+        
+        sem_post(&shm->order);  // Notify the visitor that the order is ready
     }
 
-    // Detach from shared memory
-    detach_shmem(shared_memory);
-
-    // Destroy the shared memory segment
-    destroy_shmem(shmid);
-
+    detach_shmem(shm);
+    
     return 0;
 }

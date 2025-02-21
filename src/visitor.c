@@ -1,37 +1,70 @@
-#include "smem.h"
-#include "common.h"
+#include "common_types.h"
+#include "smem_utils.h"
+#include <sys/times.h>
 
-void find_empty_chair(SharedMemory* shm) {
+// Search for an empty chair
+void find_chair(SharedMemory* shm) {
+    // Start timer for how long the visitor waits to find a chair
+    struct tms tb1, tb2;
+    double t1, t2, ticspersec;
+    ticspersec = (double) sysconf(_SC_CLK_TCK);
+    t1 = (double) times(&tb1);
+
+    sem_wait(&shm->sit);    // Wait for an available chair
+
+    // Stop timer for how long the visitor waits to find a chair
+    t2 = (double) times(&tb2);
+    double waiting_duration = (t2 - t1) / ticspersec;
+
+    // Find the first empty chair
+    sem_wait(&shm->mutex);
+    
     bool found = false;
     for (int i = 0; i < NUM_TABLES && !found; i++) {
-        if (shm->tables[i].isOccupied) {
-            printf("Table %d is occupied\n", i);
-            continue; // Skip occupied tables
-        }
-        for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
-            if (shm->tables[i].chairs[j].status == EMPTY) {
-                // Found an empty chair
-                shm->tables[i].chairs[j].status = EATING;
-                shm->tables[i].chairs[j].pid = getpid();
-                printf("Visitor %d seated at table %d, chair %d\n", getpid(), i, j);
+        for (int j = 0; j < CHAIRS_PER_TABLE && !found; j++) {
+            if (shm->tables[i].chairs[j].pid == 0) {    // Found an empty chair
+                shm->tables[i].chairs[j].pid = getpid();    // Occupy the chair
                 found = true;
-                break;
+                log_message(shm, "Visitor %d found a chair at table %d, chair %d", getpid(), i, j);
             }
         }
     }
-    if (!found) {
-        // No empty chairs available, add to waiting buffer
-        printf("No empty chairs available for visitor %d, waiting...\n", getpid());
-        int wait_index = shm->waitEnd;
-        shm->waitingVisitors[wait_index] = getpid(); // Update waitingVisitors array
-        shm->waitEnd = (shm->waitEnd + 1) % MAX_VISITORS;
-        sem_post(&shm->mutex); // Release mutex before waiting
-        sem_wait(&shm->waitSemaphores[wait_index]);
-        sem_wait(&shm->mutex); // Reacquire mutex after being signaled
-        
-        // Find an empty chair again
-        find_empty_chair(shm);
+
+    shm->visitorsCount++;   // Increment the visitors count
+    shm->waitDuration += waiting_duration;    // Update the total waiting duration
+
+    sem_post(&shm->mutex);
+}
+
+// Leave the chair
+void leave_chair(SharedMemory* shm) {
+    sem_wait(&shm->mutex);
+
+    // Update the chair status
+    for (int i = 0; i < NUM_TABLES; i++) {
+        bool all_left = true;
+        for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
+            if (shm->tables[i].chairs[j].pid == getpid()) {    // Leave the chair
+                shm->tables[i].chairs[j].pid = -1;
+                log_message(shm, "Visitor %d is leaving the chair at table %d, chair %d", getpid(), i, j);
+            }
+            if (shm->tables[i].chairs[j].pid != -1)     // Check if all chairs are marked as left
+                all_left = false;
+        }
+        if (all_left) {
+            log_message(shm, "All visitors left table %d", i);
+
+            // Initialize the table
+            for (int j = 0; j < CHAIRS_PER_TABLE; j++)
+                shm->tables[i].chairs[j].pid = 0;
+
+            // Increment the semaphore to signal 4 chairs are available
+            for (int j = 0; j < CHAIRS_PER_TABLE; j++)
+                sem_post(&shm->sit);
+        }
     }
+
+    sem_post(&shm->mutex);
 }
 
 int main(int argc, char *argv[]) {
@@ -39,6 +72,7 @@ int main(int argc, char *argv[]) {
     int resttime = 0;  // Maximum time to rest at the table
     int shmid = 0;     // Shared memory ID
 
+    // Parse command line arguments
     while ((opt = getopt(argc, argv, "d:s:")) != -1) {
         switch (opt) {
             case 'd':
@@ -53,98 +87,53 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Check if the required arguments are provided
     if (resttime == 0 || shmid == 0) {
         fprintf(stderr, "Usage: %s -d resttime -s shmid\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    // Attach to shared memory
-    SharedMemory *shared_memory = attach_shmem(shmid);
+    SharedMemory* shm = attach_shmem(shmid);    // Attach to shared memory
 
-    // Find an empty chair of a table
-    sem_wait(&shared_memory->mutex);
-    find_empty_chair(shared_memory);
-    sem_post(&shared_memory->mutex);
+    log_message(shm, "Visitor %d arrived at the bar", getpid());
 
-    // code for ordering
-    sem_wait(&shared_memory->mutex);
-    int order_index = shared_memory->orderEnd;
-    shared_memory->orderEnd = (shared_memory->orderEnd + 1) % MAX_VISITORS;
-    sem_post(&shared_memory->mutex);
-    sem_post(&shared_memory->order_sem);
-    sem_wait(&shared_memory->orderSemaphores[order_index]);
+    // Start timer for how long the visitor stays at the bar
+    struct tms tb1, tb2;
+    double t1, t2, ticspersec;
+    ticspersec = (double) sysconf(_SC_CLK_TCK);
+    t1 = (double) times(&tb1);
 
-    // Randomly decide what to order
+    find_chair(shm);    // Search for an empty chair
+
+    sem_post(&shm->wakeup); // Notify the receptionist that a visitor has arrived
+
+    sem_wait(&shm->order);  // Wait for the receptionist to process the order
+
+    log_message(shm, "Visitor %d received the order", getpid());
+
+    // Random rest time in the range [0.7 * resttime, resttime]
     srand(time(NULL));
-    int order_water = rand() % 2;
-    int order_wine = rand() % 2;
-    int order_cheese = rand() % 2;
-    int order_salad = rand() % 2;
+    int min_rest_time = (int)(0.70 * resttime);
+    int rest_time = min_rest_time + rand() % (resttime - min_rest_time + 1);
 
-    // Ensure at least one drink is ordered
-    if (!order_water && !order_wine) {
-        if (rand() % 2) {
-            order_water = 1;
-        } else {
-            order_wine = 1;
-        }
-    }
+    log_message(shm, "Visitor %d is resting for %d seconds", getpid(), rest_time);
 
-    // Update shared memory with the order
-    sem_wait(&shared_memory->mutex);
-    if (order_water) shared_memory->waterCount++;
-    if (order_wine) shared_memory->wineCount++;
-    if (order_cheese) shared_memory->cheeseCount++;
-    if (order_salad) shared_memory->saladCount++;
-    sem_post(&shared_memory->mutex);
+    sleep(rest_time);   // Rest at the table
 
-    // Rest at the table
-    srand(time(NULL));
-    int sleep_time = (rand() % (resttime / 2 + 1)) + (resttime / 2);
-    printf("Visitor PID %d resting for %d seconds\n", getpid(), sleep_time);
-    sleep(sleep_time);
+    leave_chair(shm);   // Leave the table
 
-    // Leave the table
-    sem_wait(&shared_memory->mutex);
-    for (int i = 0; i < NUM_TABLES; i++) {
-        for (int j = 0; j < CHAIRS_PER_TABLE; j++) {
-            if (shared_memory->tables[i].chairs[j].pid == getpid()) {
-                shared_memory->tables[i].chairs[j].status = EMPTY;
-                shared_memory->tables[i].chairs[j].pid = 0;
-                printf("Visitor %d left table %d, chair %d\n", getpid(), i, j);
-                
-                // Check if the table is now empty
-                bool table_empty = true;
-                for (int k = 0; k < CHAIRS_PER_TABLE; k++) {
-                    if (shared_memory->tables[i].chairs[k].status == EATING) {
-                        table_empty = false;
-                        break;
-                    }
-                }
-                shared_memory->tables[i].isOccupied = !table_empty;
+    // Stop timer for how long the visitor stays at the bar
+    t2 = (double) times(&tb2);
+    double visit_duration = (t2 - t1) / ticspersec;
 
-                if (table_empty) {
-                    for (int k = 0; k < 4 && shared_memory->waitStart != shared_memory->waitEnd; k++) {
-                        int wait_index = shared_memory->waitStart;
-                        shared_memory->waitStart = (shared_memory->waitStart + 1) % MAX_VISITORS;
-                        sem_post(&shared_memory->waitSemaphores[wait_index]);
-                    }
-                }
-                
-                break;
-            }
-        }
-    }
-    sem_post(&shared_memory->mutex);
+    // Update the total visits duration
+    sem_wait(&shm->mutex);
+    shm->visitDuration += visit_duration;
+    sem_post(&shm->mutex);
 
-    // Update statistics
-    sem_wait(&shared_memory->mutex);
-    shared_memory->visitorsCount++;
-    shared_memory->visitsDuration += sleep_time;
-    sem_post(&shared_memory->mutex);
+    log_message(shm, "Visitor %d left the bar", getpid());
 
-    // Detach from shared memory
-    detach_shmem(shared_memory);
+    detach_shmem(shm);  // Detach from shared memory
 
     return 0;
 }

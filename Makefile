@@ -2,10 +2,10 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -Wall -Wextra -std=c11 -Iinclude -lpthread
+CFLAGS = -Wall -Wextra -std=c11 -Iinclude
 
 # Target executables
-TARGETS = visitor receptionist monitor init_smem
+TARGETS = visitor receptionist monitor smem_init
 
 # Source files
 SRCS = $(wildcard src/*.c)
@@ -17,17 +17,17 @@ OBJS = $(SRCS:.c=.o)
 all: $(TARGETS)
 
 # Link object files to create the executables
-visitor: src/visitor.o src/smem.o
-	$(CC) $(CFLAGS) src/visitor.o src/smem.o -o visitor -lpthread
+visitor: src/visitor.o src/smem_utils.o
+	$(CC) $(CFLAGS) src/visitor.o src/smem_utils.o -o visitor -lpthread -Iinclude
 
-receptionist: src/receptionist.o src/smem.o
-	$(CC) $(CFLAGS) src/receptionist.o src/smem.o -o receptionist -lpthread
+receptionist: src/receptionist.o src/smem_utils.o
+	$(CC) $(CFLAGS) src/receptionist.o src/smem_utils.o -o receptionist -lpthread -Iinclude
 
-monitor: src/monitor.o src/smem.o
-	$(CC) $(CFLAGS) src/monitor.o src/smem.o -o monitor -lpthread
+monitor: src/monitor.o src/smem_utils.o
+	$(CC) $(CFLAGS) src/monitor.o src/smem_utils.o -o monitor -lpthread -Iinclude
 
-init_smem: src/init_smem.o src/smem.o
-	$(CC) $(CFLAGS) src/init_smem.o src/smem.o -o init_smem -lpthread
+smem_init: src/smem_init.o src/smem_utils.o
+	$(CC) $(CFLAGS) src/smem_init.o src/smem_utils.o -o smem_init -lpthread -Iinclude
 
 # Compile source files to object files
 src/%.o: src/%.c
